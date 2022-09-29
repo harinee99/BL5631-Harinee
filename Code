@@ -1,0 +1,67 @@
+library(Biobase)
+library(GEOquery)
+library(limma)
+library(oligo)
+library(oligoClasses)
+
+gse <- getGEO("GSE50737", GSEMatrix = TRUE, AnnotGPL = TRUE)
+if(length(gse) > 1) idx <- grep("GPL16686", attr(gse, "names")) else idx <- 1
+gse <- gse[[idx]]
+
+fvarLabels(gse) <- make.names(fvarLabels(gse))
+gsm <- "1111222000"
+sml <- strsplit(gsms, split="")[[1]]
+
+ex <- exprs(gse)
+qx <- as.numeric(quantile(ex, c(0., 0.25, 0.5, 0.75, 0.99, 1.0), na.rm=T))
+LogC <- (qx[5] > 100) ||
+          (qx[6]-qx[1] > 50 && qx[2] > 0)
+if (LogC) { ex[which(ex <= 0)] <- NaN
+  exprs(gse) <- log2(ex) }
+  
+sam <- factor(sml)
+groups <- make.names(c("control","benzene poisoning","benzene exposed"))
+levels(sam) <- groups
+gse$group <- sam
+design <- model.matrix(~group + 0, gse)
+colnames(design) <- levels(sam)
+
+fit <- lmFit(gse, design)
+
+con <- paste(groups, c(tail(groups, -1), head(groups, 1)), sep="-")
+contrast.matrix <- makeContrasts(contrasts=con, levels=design)
+fit.con <- contrasts.fit(fit, contrast.matrix)
+fit.eb <- eBayes(fitcon, 0.01)
+tT <- topTable(fit.eb, adjust="fdr", sort.by="B", number=250)
+tT <- subset(tT, select=c("ID","adj.P.Val","P.Value","F","RANGE_STRAND","RANGE_START","RANGE_END","GB_ACC","SPOT_ID","RANGE_GB"))
+write.table(tT, file=stdout(), row.names=F, sep="\t")
+
+tT2 <- topTable(fit.eb, adjust="fdr", sort.by="B", number=Inf)
+hist(tT2$adj.P.Val, col = "grey", border = "white", xlab = "P-adj", ylab = "Number of genes", main = "P-adj value distribution")
+
+dT <- decideTests(fit.eb, adjust.method="fdr", p.value=0.05)
+vennDiagram(dT, circle.col=palette())
+
+colnames(fit.eb)
+ct <- 1  
+volcanoplot(fit.eb, coef=ct, main=colnames(fit2)[ct], pch=20, highlight=length(which(dT[,ct]!=0)), names=rep('+', nrow(fit2)))
+ct <- 2 
+volcanoplot(fit.eb, coef=ct, main=colnames(fit2)[ct], pch=20, highlight=length(which(dT[,ct]!=0)), names=rep('+', nrow(fit2)))
+ct <- 3  
+volcanoplot(fit.eb, coef=ct, main=colnames(fit2)[ct], pch=20, highlight=length(which(dT[,ct]!=0)), names=rep('+', nrow(fit2)))
+
+plotMD(fit.eb, column=ct, status=dT[,ct], legend=F, pch=20, cex=1)
+
+ex <- exprs(gse)
+ord <- order(sam)
+palette(c("#1B9E77", "#7570B3", "#E7298A", "#E6AB02", "#D95F02", "#66A61E", "#A6761D", "#B32424", "#B324B3", "#666666"))
+par(mar=c(7,4,2,1))
+title <- paste ("GSE50737", "/", annotation(gse), sep ="")
+boxplot(ex[,ord], boxwex=0.6, notch=T, main=title, outline=FALSE, las=2, col=gs[ord])
+legend("topleft", groups, fill=palette(), bty="n")
+
+par(mar=c(4,4,2,1))
+title <- paste ("GSE50737", "/", annotation(gset), " value distribution", sep ="")
+plotDensities(ex, group=gs, main=title, legend ="topright")
+
+plotSA(fit.eb, main="Mean variance trend, GSE50737")
