@@ -36,6 +36,8 @@ tT <- topTable(fit.eb, adjust="fdr", sort.by="B", number=250)
 tT <- subset(tT, select=c("ID","adj.P.Val","P.Value","F","RANGE_STRAND","RANGE_START","RANGE_END","GB_ACC","SPOT_ID","RANGE_GB"))
 write.table(tT, file=stdout(), row.names=F, sep="\t")
 
+topTable(fit.eb)
+
 tT2 <- topTable(fit.eb, adjust="fdr", sort.by="B", number=Inf)
 hist(tT2$adj.P.Val, col = "grey", border = "white", xlab = "P-adj", ylab = "Number of genes", main = "P-adj value distribution")
 
