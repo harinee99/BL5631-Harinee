@@ -67,3 +67,9 @@ title <- paste ("GSE50737", "/", annotation(gset), " value distribution", sep ="
 plotDensities(ex, group=gs, main=title, legend ="topright")
 
 plotSA(fit.eb, main="Mean variance trend, GSE50737")
+
+tT2 <- topTable(fit.eb, lfc=2, p.value = 0.05, number=100)
+eset_of_interest <- gset[rownames(tT2),]
+heatmap(exprs(eset_of_interest))
+pheatmap(eset_of_interest)
+heatmap(exprs(eset_of_interest), labCol=gset[['treatment:ch1']] ,labRow=NA, col = rev(brewer.pal(10, "RdBu")), distfun = function(x) as.dist(1-cor(t(x))))
