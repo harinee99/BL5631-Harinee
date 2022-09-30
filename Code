@@ -1,3 +1,9 @@
+# installing the packages
+BiocManager::install("GEOquery")
+BiocManager::install("oligo")
+BiocManager::install("limma")
+install.packages("pheatmap")
+
 # library function is used to load and attach add-on packages.
 library(Biobase)
 library(GEOquery)
