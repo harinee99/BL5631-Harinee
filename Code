@@ -87,7 +87,7 @@ legend("topright", groups, fill=palette(), bty="n")
 # to get a density plot
 par(mar=c(4,4,2,1))
 title <- paste ("GSE50737", "/", annotation(gset), " value distribution", sep ="")
-plotDensities(ex, group=gs, main=title, legend ="right")
+plotDensities(ex, group=gs, main=title, legend ="topright")
 
 #to get a mean variance plot
 plotSA(fit.eb, main="Mean variance trend, GSE50737")
