@@ -77,13 +77,6 @@ plotMD(fit.eb, column=ct, status=dT[,ct], legend=F, pch=20, cex=1)
 # General expression data analysis
 ex <- exprs(gse)
 
-# to get a box plot
-ord <- order(sam)
-par(mar=c(7,4,2,1))
-title <- paste ("GSE50737", "/", annotation(gse), sep ="")
-boxplot(ex[,ord], boxwex=0.6, notch=T, main=title, outline=FALSE, las=2, col=gs[ord])
-legend("topright", groups, fill=palette(), bty="n")
-
 # to get a density plot
 par(mar=c(4,4,2,1))
 title <- paste ("GSE50737", "/", annotation(gset), " value distribution", sep ="")
