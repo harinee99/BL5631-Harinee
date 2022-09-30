@@ -4,6 +4,7 @@ library(GEOquery)
 library(limma)
 library(oligo)
 library(oligoClasses)
+library(pheatmap)
 library(RColorBrewer)
 
 # to load data from GEO
