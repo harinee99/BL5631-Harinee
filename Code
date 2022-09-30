@@ -4,6 +4,7 @@ library(GEOquery)
 library(limma)
 library(oligo)
 library(oligoClasses)
+library(RColorBrewer)
 
 # to load data from GEO
 gse <- getGEO("GSE50737", GSEMatrix = TRUE, AnnotGPL = TRUE)
@@ -62,7 +63,7 @@ dT <- decideTests(fit.eb, adjust.method="fdr", p.value=0.05)
 #for Venn diagram
 vennDiagram(dT, circle.col=palette())
 
-#for volcano plots
+# to get volcano plots for log P-value vs log fold change
 colnames(fit.eb)
 ct <- 1 # control - benzene poisoning
 volcanoplot(fit.eb, coef=ct, main=colnames(fit2)[ct], pch=20, highlight=length(which(dT[,ct]!=0)), names=rep('+', nrow(fit2)))
@@ -77,21 +78,21 @@ plotMD(fit.eb, column=ct, status=dT[,ct], legend=F, pch=20, cex=1)
 # General expression data analysis
 ex <- exprs(gse)
 
-# to get a density plot
+# to get a density plot for expression value distribution
 par(mar=c(4,4,2,1))
 title <- paste ("GSE50737", "/", annotation(gset), " value distribution", sep ="")
-plotDensities(ex, group=gs, main=title, legend ="topright")
+plotDensities(ex, group=sam, main=title, legend ="topright")
 
 #to get a mean variance plot
 plotSA(fit.eb, main="Mean variance trend, GSE50737")
 
 #to get heatmap
 tT2 <- topTable(fit.eb, lfc=2, p.value = 0.05, number=100)
-eset_of_interest <- gset[rownames(tT2),]
-heatmap(exprs(eset_of_interest))
+hm <- gse[rownames(tT2),]
+heatmap(exprs(hm))
 
-#to get pretty heatmap
-pheatmap(eset_of_interest)
+#to get pheatmap
+pheatmap(hm)
 
 #to get heatmap specifically for treatments
-heatmap(exprs(eset_of_interest), labCol=gset[['treatment:ch1']] ,labRow=NA, col = rev(brewer.pal(10, "RdBu")), distfun = function(x) as.dist(1-cor(t(x))))
+heatmap(exprs(hm), labCol=gse[['treatment:ch1']] ,labRow=NA, col = rev(brewer.pal(10, "RdBu")), distfun = function(x) as.dist(1-cor(t(x))))
