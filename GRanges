@@ -1,0 +1,57 @@
+library(GenomicRanges)
+library(AnnotationHub)
+library(rtracklayer)
+library(IRanges)
+library(oligo)
+library(oligoClasses)
+
+ah <- AnnotationHub()
+query(ah, c("GRanges","Homo sapiens","GRCh38"))
+ah['AH28674']
+gtf <- ah[['AH28674']]
+gtf[,"protein_id"]
+keep <- !is.na(mcols(promoters)$protein_id)
+promoters[keep,]
+
+cpg_gr<- ah[['AH5086']]
+download.file("http://hgdownload.soe.ucsc.edu/goldenPath/hg19/liftOver/hg19ToHg38.over.chain.gz", "hg19ToHg38.over.chain.gz")
+system("gzip -d hg19ToHg38.over.chain.gz")
+chain <- import.chain("hg19ToHg38.over.chain")
+cpg_38<-liftOver(cpg_gr,chain)
+
+gr <- unlist(cpg_38)
+genome(gr) = "hg38"
+gr
+
+seqlevels(gr)
+seqlevelsStyle(gtf) <- 'UCSC'
+
+cpg <- findOverlaps(gr, gtf)
+cpg
+
+cpg_fraction <- length(unique(queryHits(cpg)))/length(gr)
+cpg_fraction  
+
+counts=countOverlaps(gr, gtf)
+head(counts)
+
+width(ranges(gr))
+
+overlaps <- subsetByOverlaps(gr, gtf)
+nonoverlaps <- subsetByOverlaps(gr, gtf, invert=TRUE)
+roverlaps <- as.data.frame(ranges(overlaps))
+rnonoverlaps <- as.data.frame(ranges(nonoverlaps))
+
+oligo::hist(log10(unique(roverlaps$width)), main="CPG Islands Overlaps")
+oligo::hist(log10(unique(rnonoverlaps$width)), main="CPG Islands Non-Overlaps")
+
+d1 <- density(unique(roverlaps$width))
+plot(d1,  main="Density Plot of Overlaps")
+d2 <- density(unique(rnonoverlaps$width))
+plot(d2,  main="Density Plot of Non-Overlaps")
+
+n.ind=nearest(gr, gtf)
+dists=distanceToNearest(gr, gtf, select="arbitrary")
+dists
+distfromtss=mcols(dists)[,1]
+hist(log10(distfromtss),xlab="log10(dist to nearest TSS)", main="Distances")
