@@ -5,20 +5,25 @@ library(IRanges)
 library(oligo)
 library(oligoClasses)
 
+# to retrieve information about promoters
 ah <- AnnotationHub()
 query(ah, c("GRanges","Homo sapiens","GRCh38"))
 ah['AH28674']
+
+# to create a Granges object for the promoters of all protein-coding transcripts
 gtf <- ah[['AH28674']]
 gtf[,"protein_id"]
 keep <- !is.na(mcols(promoters)$protein_id)
 promoters[keep,]
 
+# to retrieve information about CpG islands
 cpg_gr<- ah[['AH5086']]
 download.file("http://hgdownload.soe.ucsc.edu/goldenPath/hg19/liftOver/hg19ToHg38.over.chain.gz", "hg19ToHg38.over.chain.gz")
 system("gzip -d hg19ToHg38.over.chain.gz")
 chain <- import.chain("hg19ToHg38.over.chain")
 cpg_38<-liftOver(cpg_gr,chain)
 
+# to unlist CpG islands information
 gr <- unlist(cpg_38)
 genome(gr) = "hg38"
 gr
@@ -26,30 +31,37 @@ gr
 seqlevels(gr)
 seqlevelsStyle(gtf) <- 'UCSC'
 
+# to find overlaps between CpG islands and promoter
 cpg <- findOverlaps(gr, gtf)
 cpg
 
+# to find fraction of overlaps between CpG islands and promoter
 cpg_fraction <- length(unique(queryHits(cpg)))/length(gr)
 cpg_fraction  
 
+# to find count the number of peaks that overlap with a given CpG island
 counts=countOverlaps(gr, gtf)
 head(counts)
 
-width(ranges(gr))
+width(ranges(gr)) # to find width of each overlap 
 
+# to find the subset of peaks that overlap with the CpG islands 
 overlaps <- subsetByOverlaps(gr, gtf)
 nonoverlaps <- subsetByOverlaps(gr, gtf, invert=TRUE)
 roverlaps <- as.data.frame(ranges(overlaps))
 rnonoverlaps <- as.data.frame(ranges(nonoverlaps))
 
+# for histograms of overlaps and non-overlaps of CpG islands with promoter
 oligo::hist(log10(unique(roverlaps$width)), main="CPG Islands Overlaps")
 oligo::hist(log10(unique(rnonoverlaps$width)), main="CPG Islands Non-Overlaps")
 
+# for number of overlaps and non-overlaps of CpG islands with promoter
 d1 <- density(unique(roverlaps$width))
 plot(d1,  main="Density Plot of Overlaps")
 d2 <- density(unique(rnonoverlaps$width))
 plot(d2,  main="Density Plot of Non-Overlaps")
 
+# to find distance between CpG islands with the nearest transcription start site
 n.ind=nearest(gr, gtf)
 dists=distanceToNearest(gr, gtf, select="arbitrary")
 dists
