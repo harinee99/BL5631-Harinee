@@ -1,0 +1,171 @@
+# The five main R packages used are DESeq2, pheatmap, biomaRt, EnhancedVolcano, and dplyr.
+library(DESeq2)
+library(pheatmap)
+library(biomaRt)
+library(EnhancedVolcano)
+library(dplyr)
+
+setwd("C:/Users/RELIANCE/OneDrive/Desktop/TSV2")
+
+# csv file contains the required data from experiment. csv file is a excel file in the directory.
+metadata <- read.csv("samples2.csv")
+rownames(metadata) <- metadata$sampleID
+
+# this imports all the files as a list, with each element of the list being the read in file.
+s <- lapply(metadata$filename, read.table, header=TRUE)
+names(s) <- metadata$sampleID
+
+class(s) # list
+length(s) # 7
+
+colnames(s[[1]]) # to check the column names of the imported file.
+
+# a simple scatter plot: length vs. effective length.
+plot(y=s$Day1$effective_length, x=f$Day1$length, main = "Length vs. Effective Length", xlab = "Length", ylab = "Effective Length", col.main="red", col.lab="blue")
+
+# a simple scatter plot: log values of length vs. effective length.
+plot(y=log10(s$Day1$effective_length+1), x=log10(f$Day1$length+1), main = "Length vs. Effective Length (Log Values)", xlab = "Log of Length", ylab = "Log of Effective Length", col.main="red", col.lab="blue", cex.main=0.6, cex.lab = 0.7)
+lines(y=1:5, x=1:5, col="red")
+
+# to find the expected counts in DESeq2.
+countdf <- cbind(s[[1]]$expected_count, s[[2]]$expected_count, s[[3]]$expected_count, s[[4]]$expected_count, s[[5]]$expected_count, s[[6]]$expected_count, s[[7]]$expected_count)
+
+rownames(countdf) <- s[[1]]$gene_id
+colnames(countdf) <- names(s)
+
+countmat <- as.matrix(countdf)
+
+countmat.int <- apply(countmat, 2, function(x) round(x))
+
+dim(countmat.int)
+
+# to remove zero expression counts in all samples.
+barplot(table(rowSums(countmat.int>0)), main="Genes vs. Expression Count", col.main="red")
+
+countmat.int2 <- countmat.int[apply(countmat.int,1, function(x) !any(x==0)),]
+
+dim(countmat.int2)
+
+# data from the csv file is imported to a single variable.
+ds <- DESeqDataSetFromMatrix(countData = countmat.int2, colData = metadata, design = ~ treatment)
+ds <- DESeq(ds)
+
+result <- results(ds)
+result
+
+head(counts(ds))
+head(counts(ds,normalized=TRUE))
+
+colData(ds)$sizeFactor
+
+# normalization using median of ratios method.
+find.gmean <- function(myvec) {
+  gmean <- exp(mean(log(myvec[myvec>0]))) # only values that aren't zero are considered.
+  if (all(myvec==0)) {
+    return(0)
+  } else {
+    return(gmean)
+  }
+}
+
+gene.gmean <- apply(countmat.int2,
+                    1,
+                    find.gmean)
+
+gene.ratio <- data.frame(Day0=NA, Day1=NA, Day2=NA, Day3=NA, Day4=NA, Day5=NA, Day6=NA)
+
+for (i in 1:nrow(countmat.int2)) {
+  gene.ratio <- rbind(gene.ratio,
+                      countmat.int2[i,]/gene.gmean[i])
+}
+
+gene.ratio <- gene.ratio[-1,]
+
+gene.ratio <- t(sapply(1:nrow(countmat.int2),
+                       function(x) 
+                         countmat.int2[x,]/gene.gmean[x]))
+
+median.ratios <- apply(gene.ratio, 2, function(x) median(x, na.rm=TRUE))
+
+median.ratios
+
+sizeFactors(ds)
+
+# the size factors correspond to the library size.
+plot(sizeFactors(ds), colSums(counts(ds)), main = "Size Factors vs. Sum of Columns in DESeqDataSet for Treatment", xlab = "Size Factors", ylab = "Sum of Columns (colSums)", col.main="red", col.lab="blue", cex.main=0.5, cex.lab = 0.6)
+
+# to divide the counts.
+counts(ds, normalized=FALSE)[5,]/sizeFactors(ds) == counts(ds, normalized=TRUE)[5,]
+
+par(mfrow=c(1,2)) 
+
+# non-normalized box plot.
+boxplot(log2(counts(ds)+1), notch=TRUE, main = "Non-normalized Read Counts for Treatment", ylab="Log of Read Counts", col.main = "red", col.lab="blue", cex.main = 0.8, cex.names = 0.5)
+
+# size-factor normalized box plot.
+boxplot(log2(counts(ds, normalize= TRUE) +1), notch=TRUE, main = "Size-factor-normalized Read Counts for Treatment", xlab = "Types", ylab="Log of Red Counts", col.main = "red", col.lab="blue", cex.main=0.7, cex.lab=0.8)
+
+# to exmine results.
+summary(result)
+
+res.sig <- result[(result$padj<0.01)&(!is.na(result$padj)),]
+res.sig.up <- res.sig[res.sig$log2FoldChange > 1,]
+res.sig.down <- res.sig[res.sig$log2FoldChange < (-1),]
+
+res.sig.up <- res.sig.up[order(res.sig.up$padj, decreasing=FALSE),]
+res.sig.down <- res.sig.down[order(res.sig.down$padj, decreasing=FALSE),]
+
+# rlog transformation to reduce the dependence of the variance on the mean.
+log.counts <- log2(counts(ds, normalized=TRUE))
+
+rlog.counts <- assay(rlog(ds))
+
+plot(log.counts[,1:2], cex=0.1, main="Size Factor and Log2-transformed for Treatment", col.main = "red", col.lab="blue", cex.main = 0.7)
+
+plot(rlog.counts[,1:2], cex=0.1, main="rlog transformed for Treatment", col.main = "red", col.lab="blue")
+
+plotPCA(rlog(ds), intgroup="treatment") # to evaluate sample grouping.
+
+par(mfrow=c(1,2))
+
+# to get the top 10 upregulated and downregulated genes.
+boxplot(rlog.counts[rownames(res.sig.up)[1:10],], main="Top 10 Upregulated Genes in Treatment", col.main="red", cex.main=0.7)
+boxplot(rlog.counts[rownames(res.sig.down)[1:10],], main="Top 10 Downregulated Genes in Treatment", col.main="red", cex.main=0.7)
+
+norm <- rlog.counts[c(rownames(res.sig.up)[1:20], rownames(res.sig.down)[1:20]),]
+
+up <- norm[1:20,] # upregulated genes
+down <- norm[21:40,] # downregulated genes
+
+# for more diverse results, MA plot, volcano plot and pheatmaps are obtained.
+plotMA(result, main="Differentially Expressed Genes in Treatment", xlab="Mean of Normalized Counts", ylab="Log of Fold Change", col.main="red", col.lab="blue", cex.main = 0.8)
+
+EnhancedVolcano(result, lab = rownames(result), x = "log2FoldChange", y="padj", labSize = 2)
+
+pheatmap(norm, fontsize_col = 10, fontsize_row = 5)
+
+pheatmap(norm, scale="row", fontsize_col = 10, fontsize_row = 5)
+pheatmap(up, fontsize_row = 5)
+pheatmap(down, fontsize_row = 5)
+
+# to get gene IDs.
+diffgenes <- data.frame(ensembl_gene_id_version=rownames(norm), ensembl_gene_id=NA)
+
+diffgenes$ensembl_gene_id <- sapply(diffgenes$ensembl_gene_id_version,
+                                    function(x)
+                                      strsplit(x,"[.]")[[1]][1])
+
+mart <- useEnsembl("ensembl","hsapiens_gene_ensembl")
+
+z <- getBM(c("ensembl_gene_id","hgnc_symbol"), "ensembl_gene_id", diffgenes$ensembl_gene_id, mart)
+
+diffgenes.symbol <- merge(diffgenes, z)
+
+symbols <- diffgenes.symbol[match(rownames(norm.mat), diffgenes.symbol$ensembl_gene_id_version),"hgnc_symbol"]
+
+rownames(norm) <- symbols
+
+# pheatmaps with gene IDs.
+pheatmap(norm, fontsize_row = 5)
+
+pheatmap(norm, scale="row", fontsize_row = 5)
